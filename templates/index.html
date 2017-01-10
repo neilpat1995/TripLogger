@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% import "helpers/forms.html" as forms %}
+
+{% block title %} Welcome to TripLogger! {% endblock %}
+{% block content %}
+{{ super() }}
+
+<a href="/log_in"> Log In </a>
+<a href="/create_account"> Create an Account </a>
+
+<p> Planning a new trip? </p>
+<p> Start by entering some basic information below. </p>
+
+<form action="{{ url_for('index') }}" method="POST">
+	<fieldset>
+		<legend>Create New Trip</legend>
+		{{ forms.render(trip_form) }}
+		<p><input type="Submit" value="Finish Creating Trip"></p>
+	</fieldset>
+</form>
+
+{% endblock content %}

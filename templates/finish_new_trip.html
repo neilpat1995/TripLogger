@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?v=3.exp&key={{ GOOGLE_API_KEY }}&callback=getOriginCoordinates" type="text/javascript">
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <title>Finish New Trip</title>
+    <style>
+      #right-panel {
+        font-family: 'Roboto','sans-serif';
+        line-height: 30px;
+        padding-left: 10px;
+      }
+
+      #right-panel select, #right-panel input {
+        font-size: 15px;
+      }
+
+      #right-panel select {
+        width: 100%;
+      }
+
+      #right-panel i {
+        font-size: 12px;
+      }
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+        float: left;
+        width: 70%;
+        height: 100%;
+      }
+      #right-panel {
+        margin: 20px;
+        border-width: 2px;
+        width: 20%;
+        height: 400px;
+        float: left;
+        text-align: left;
+        padding-top: 0;
+      }
+      #directions-panel {
+        margin-top: 10px;
+        background-color: #FFEE77;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="trip_name"> 
+      <h1> {{ trip_name }} </h1>
+    </div>
+    <div id="map"></div>
+    <div id="right-panel">
+    <div>
+      <input type="submit" id="finish-new-trip-button" value="Add My Trip!">
+    </div>
+    <div id="directions-panel"></div>
+    </div>
+
+    <script>
+      $(document).ready(function(){
+        document.getElementById("finish-new-trip-button").onclick = function() {
+          console.log("Now in onClick for AJAX request!");
+          // Retrieve data from displayed map (after user makes changes) after testing
+          $.ajax({
+            type: "POST",
+            url: "{{ url_for('store_trip') }}",
+            data: JSON.stringify({
+              "trip_name": "{{ trip_name }}",
+              "origin": "{{ origin }}",
+              "destination": "{{ destination }}",
+              "waypoints": "{{ waypoints }}"
+            }, null, '\t'),
+            contentType: "application/json;charset=UTF-8",
+            success: function(result) {
+              console.log(result);
+            }
+          });
+
+
+          /*$.post( "{{ url_for('store_trip') }}", {
+            trip_data: {
+              "trip_name": "{{ trip_name }}",
+              "origin": "{{ origin }}",
+              "destination": "{{ destination }}",
+              "waypoints": "{{ waypoints }}"
+            } 
+          });*/  
+        }
+      })
+
+      /*//Wrapper function to AJAX POST request that passes data back to server.
+      function passTripData() {
+        console.log("Now in passTripData!");
+        document.getElementById("finish-new-trip-button").onclick = function() {
+          console.log("Now in onClick for AJAX request!");
+          // Retrieve data from displayed map (after user makes changes) after testing
+          $.post( "{{ url_for('store_trip') }}", {
+            trip_data: {
+              "trip_name": "{{ trip_name }}",
+              "origin": "{{ origin }}",
+              "destination": "{{ destination }}",
+              "waypoints": [
+                "{{ waypoints }}"
+              ]
+            } 
+          });  
+        }
+      }*/
+
+      //Use Geocoding API to get coordinates for origin, destination, and waypoints.
+      function getOriginCoordinates() {
+        //passTripData(); // function that sets onClick event for "Submit" button
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode( { 'address': "{{ origin }}"}, function(results, status) {
+          if (status == 'OK') {
+            originCoordinates = results[0].geometry.location;
+            console.log("Origin coords: " + "lat = " + originCoordinates.lat() + ", lng = " + originCoordinates.lng());
+            getDestCoordinates(originCoordinates);
+          } else {
+            alert('Geocode of origin was not successful for the following reason: ' + status);
+          }
+        });
+      }
+      function getDestCoordinates(originCoords) {
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode( { 'address': "{{ destination }}"}, function(results, status) {
+          if (status == 'OK') {
+            destCoordinates = results[0].geometry.location;
+            console.log("Dest coords: " + "lat = " + destCoordinates.lat() + ", lng = " + destCoordinates.lng());
+            getWaypointCoordinates(originCoords, destCoordinates);
+          } else {
+            alert('Geocode of destination was not successful for the following reason: ' + status);
+          }
+        });
+      }
+      function getWaypointCoordinates(originCoords, destCoords) {
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode( { 'address': "{{ waypoints }}"}, function(results, status) {
+          if (status == 'OK') {
+            waypointCoordinates = results[0].geometry.location;
+            console.log("Waypoint coords: " + "lat = " + waypointCoordinates.lat() + ", lng = " + waypointCoordinates.lng());
+            initMap(originCoords, destCoords, waypointCoordinates);
+          } else {
+            alert('Geocode of waypoints was not successful for the following reason: ' + status);
+          }
+        });
+      }
+
+      function initMap(originCoords, destCoords, waypointCoords) {
+        var directionsService = new google.maps.DirectionsService;
+        var directionsDisplay = new google.maps.DirectionsRenderer;
+        
+        //Center map between origin and destination.
+        //TEST LATLNG OBJECTS FIRST
+        console.log("Origin: lat=" + originCoords.lat() + ", lng=" + originCoords.lng());
+        console.log("Destination: lat=" + destCoords.lat() + ", lng=" + destCoords.lng());
+
+        var mapLatitudeCenter = (originCoords.lat() + destCoords.lat())/2;
+        var mapLongitudeCenter = (originCoords.lng() + destCoords.lng())/2;
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 6,
+          center: {lat: mapLatitudeCenter, lng: mapLongitudeCenter}
+        });
+        directionsDisplay.setMap(map);
+
+        calculateAndDisplayRoute(directionsService, directionsDisplay, originCoords, destCoords, waypointCoords);
+      }
+
+      function calculateAndDisplayRoute(directionsService, directionsDisplay, originCoords, destCoords, waypointCoords) {
+        var waypts = [];
+        waypts.push({
+          location: waypointCoords,
+          stopover: true
+        });
+
+        directionsService.route({
+          origin: originCoords,
+          destination: destCoords,
+          waypoints: waypts,
+          optimizeWaypoints: true,
+          travelMode: 'DRIVING'
+        }, function(response, status) {
+          if (status === 'OK') {
+            directionsDisplay.setDirections(response);
+            var route = response.routes[0];
+            var summaryPanel = document.getElementById('directions-panel');
+            summaryPanel.innerHTML = '';
+            // For each route, display summary information.
+            for (var i = 0; i < route.legs.length; i++) {
+              var routeSegment = i + 1;
+              summaryPanel.innerHTML += '<b>Route Segment: ' + routeSegment +
+                  '</b><br>';
+              summaryPanel.innerHTML += route.legs[i].start_address + ' to ';
+              summaryPanel.innerHTML += route.legs[i].end_address + '<br>';
+              summaryPanel.innerHTML += route.legs[i].distance.text + '<br><br>';
+            }
+          } else {
+            window.alert('Directions request failed due to ' + status);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

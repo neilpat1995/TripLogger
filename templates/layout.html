@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>{% block title %}{% endblock %}</title>
+</head>
+<body>
+<section>
+{% block content %}
+<h1>{{ self.title() }}</h1>
+{% endblock %}
+</section>
+<nav>
+<ul>
+<li><a href="/">Home</a></li>
+<li><a href="/trips">My Trips</a></li>
+</ul>
+</nav>
+</body>
+</html>
